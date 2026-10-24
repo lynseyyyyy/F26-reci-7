@@ -76,25 +76,26 @@ describe('matchGuess', () => {
       }),
     );
   });
-    // Pattern: conditional. A misplaced matching letter is yellow.
+  
+  // Pattern: conditional. Swapped distinct letters receive yellow feedback.
   it('marks misplaced matching letters yellow', () => {
+    const distinctLetters = fc.shuffledSubarray(
+      [...'ABCDEFGHIJKLMNOPQRSTUVWXY'],
+      { minLength: 2, maxLength: 2 },
+    );
+
     fc.assert(
-      fc.property(
-        fc.constantFrom(...ALPHABET),
-        fc.constantFrom(...ALPHABET),
-        (a, b) => {
-          fc.pre(a !== b);
+      fc.property(distinctLetters, ([a, b]) => {
+        const secret = a + b + 'ZZZ';
+        const guess = b + a + 'ZZZ';
 
-          const secret = a + b + 'ZZZ';
-          const guess = b + a + 'ZZZ';
-
-          const result = matchGuess(secret, guess);
-
-          expect(result).toEqual(['Y', 'Y', 'G', 'G', 'G']);
-        },
-      ),
+        expect(matchGuess(secret, guess)).toEqual([
+          'Y', 'Y', 'G', 'G', 'G',
+        ]);
+      }),
     );
   });
+
     // Pattern: conditional. Exact matches take priority over misplaced matches.
   it('prioritizes green matches when letters repeat', () => {
     fc.assert(
@@ -112,6 +113,25 @@ describe('matchGuess', () => {
           expect(result).toEqual(['B', 'G', 'G', 'G', 'G']);
         },
       ),
+    );
+  });
+
+  // Pattern: metamorphic. Consistently renaming letters preserves feedback.
+  it('preserves feedback when letters are renamed', () => {
+    const shift = (text: string) =>
+      [...text].map(c =>
+        String.fromCharCode(
+          65 + (c.charCodeAt(0) - 65 + 1) % 26
+        )
+      ).join('');
+
+    fc.assert(
+      fc.property(word, word, (secret, guess) => {
+        const original = matchGuess(secret, guess);
+        const renamed = matchGuess(shift(secret), shift(guess));
+
+        expect(renamed).toEqual(original);
+      }),
     );
   });
 });

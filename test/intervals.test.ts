@@ -17,6 +17,27 @@ const interval: fc.Arbitrary<Interval> =
     .map(([start, length]) => [start, start + length]);
 const intervalList = fc.array(interval);
 
+
+const disjointIntervals = fc
+  .array(
+    fc.tuple(
+      fc.nat({ max: 10 }),
+      fc.integer({ min: 1, max: 10 }),
+    ),
+    { maxLength: 10 },
+  )
+  .map(parts => {
+    let previousEnd = 0;
+
+    return parts.map(([length, gap]): Interval => {
+      const start = previousEnd + gap;
+      const end = start + length;
+      previousEnd = end;
+
+      return [start, end];
+    });
+  });
+
 describe('mergeIntervals', () => {
   // Pattern: invariant. Every input interval lies inside some output interval.
   it('every input interval lies inside some output interval', () => {
@@ -96,19 +117,12 @@ describe('mergeIntervals', () => {
     );
   });
 
-    // Pattern: conditional. Already sorted, non-overlapping intervals stay unchanged.
+
+  // Pattern: conditional. Already disjoint intervals remain unchanged.
   it('preserves already sorted non-overlapping intervals', () => {
     fc.assert(
-      fc.property(intervalList, xs => {
-        const sorted = [...xs].sort((a, b) => a[0] - b[0]);
-
-        const nonOverlapping = sorted.every(
-          ([start], i) => i === 0 || sorted[i - 1][1] < start
-        );
-
-        fc.pre(nonOverlapping);
-
-        expect(mergeIntervals(sorted)).toEqual(sorted);
+      fc.property(disjointIntervals, xs => {
+        expect(mergeIntervals(xs)).toEqual(xs);
       }),
     );
   });
